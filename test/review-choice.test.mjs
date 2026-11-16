@@ -330,6 +330,32 @@ function listenerWith({ onBlock = "ask", ask, policy = "never", questions = true
   return { listener, asked };
 }
 
+test("ask_user_question bypasses the review-choice gate", async () => {
+  const { listener, asked } = listenerWith({ ask: () => answerWith(ALLOW_ONCE_LABEL) });
+  let nextCalled = false;
+  const result = await listener(
+    { ...exec, name: "ask_user_question" },
+    async () => {
+      nextCalled = true;
+      return deniedGate;
+    },
+  );
+  assert.deepEqual(result, { kind: "allow" });
+  assert.equal(nextCalled, false, "the Auto review gate is skipped");
+  assert.equal(asked.length, 0, "no redundant review-choice card");
+});
+
+test("other tools still pass through the review gate", async () => {
+  const { listener } = listenerWith({ ask: () => answerWith(ALLOW_ONCE_LABEL) });
+  let nextCalled = false;
+  const result = await listener(exec, async () => {
+    nextCalled = true;
+    return { kind: "allow" };
+  });
+  assert.equal(nextCalled, true);
+  assert.deepEqual(result, { kind: "allow" });
+});
+
 test("a denial becomes a question; allow-once allows", async () => {
   for (const gate of [deniedGate, failedGate, askGate]) {
     const { listener, asked } = listenerWith({ ask: () => answerWith(ALLOW_ONCE_LABEL) });
